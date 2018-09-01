@@ -165,14 +165,20 @@ const Search = ({ value, onChange, onSubmit, children }) =>
     <button type="submit">
       {children}
     </button>
-  </form>
+  </form>;
+
+const classNames = (...args) => args.reduce((acc, value) => acc + ' ' + value, '');
 
 const Table = ({ list, onDismiss }) =>
   <div className="table">
     {list.map(item =>
-      <div key={item.objectID} className="table-row">
+      <div key={item.objectID} className={classNames("table-row", "table-row-comment")}>
         <span style={{ width: '40%' }}>
-          <a href={item.url}>{item.title}</a>
+          <a href={item.url}>{
+            item.title ?
+              item.title :
+              item.comment_text.slice(0, 100) + '...'
+          }</a>
         </span>
         <span style={{ width: '20%' }}>
           {item.author}
