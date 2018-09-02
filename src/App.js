@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import axios from 'axios';
 import PropTypes from 'prop-types';
 import './App.css';
-import { sortBy } from 'lodash';
+import Table from './Table';
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faSpinner, faCaretUp, faCaretDown } from '@fortawesome/free-solid-svg-icons'
@@ -18,12 +18,26 @@ const PARAM_SEARCH = 'query=';
 const PARAM_PAGE = 'page=';
 const PARAM_HPP = 'hitsPerPage=';
 
-const SORTS = {
-  NONE: list => list,
-  TITLE: list => sortBy(list, 'title'),
-  AUTHOR: list => sortBy(list, 'author'),
-  COMMENTS: list => sortBy(list, 'num_comments').reverse(),
-  POINTS: list => sortBy(list, 'points').reverse(),
+
+const updateSearchTopStoriesState = (hits, page) => (prevState) =>  {
+  const { searchKey, results } = prevState;
+
+  const oldHits = results && results[searchKey]
+    ? results[searchKey].hits
+    : [];
+
+  const updatedHits = [
+    ...oldHits,
+    ...hits
+  ];
+
+  return {
+    results: {
+      ...results,
+      [searchKey]: { hits: updatedHits, page }
+    },
+    isLoading: false,
+  };
 };
 
 class App extends Component {
@@ -39,8 +53,6 @@ class App extends Component {
       searchTerm: DEFAULT_QUERY,
       error: null,
       isLoading: false,
-      sortKey: 'NONE',
-      isSortReverse: false,
     };
 
     this.needsToSearchTopStories = this.needsToSearchTopStories.bind(this);
@@ -49,12 +61,6 @@ class App extends Component {
     this.onSearchChange = this.onSearchChange.bind(this);
     this.onSearchSubmit = this.onSearchSubmit.bind(this);
     this.onDismiss = this.onDismiss.bind(this);
-    this.onSort = this.onSort.bind(this);
-  }
-
-  onSort(sortKey) {
-    const isSortReverse = this.state.sortKey === sortKey && !this.state.isSortReverse;
-    this.setState({sortKey, isSortReverse});
   }
 
   needsToSearchTopStories(searchTerm) {
@@ -62,26 +68,10 @@ class App extends Component {
   }
 
   setSearchTopStories(result) {
-    const { hits, page } = result;
-    const { searchKey, results } = this.state;
-
-    const oldHits = results && results[searchKey]
-      ? results[searchKey].hits
-      : [];
-
-    const updatedHits = [
-      ...oldHits,
-      ...hits
-    ];
-
-    this.setState({
-      results: {
-        ...results,
-        [searchKey]: { hits: updatedHits, page }
-      },
-      isLoading: false,
-    });
+    const {hits, page} = result;
+    this.setState(updateSearchTopStoriesState(hits, page));
   }
+
 
   fetchSearchTopStories(searchTerm, page = 0) {
     this.setState({ isLoading: true });
@@ -138,8 +128,6 @@ class App extends Component {
       searchKey,
       error,
       isLoading,
-      sortKey,
-      isSortReverse,
     } = this.state;
 
     const page = (
@@ -170,9 +158,6 @@ class App extends Component {
             <p>Something went wrong.</p>
           </div>
           : <Table
-            sortKey={sortKey}
-            isSortReverse={isSortReverse}
-            onSort={this.onSort}
             list={list}
             onDismiss={this.onDismiss}
           />
@@ -225,88 +210,6 @@ class Search extends Component {
   }
 }
 
-const classNames = (...args) => args.reduce((acc, value) => acc + ' ' + value, '');
-
-const Table = ({
-  sortKey,
-  isSortReverse,
-  onSort,
-  list,
-  onDismiss,
-}) => {
-  const sortedList = SORTS[sortKey](list);
-  const reverseSortedList = isSortReverse
-    ? sortedList.reverse()
-    : sortedList;
-
-  return (
-    <div className="table">
-      <div className="table-header">
-        <span style={{width: '40%'}}>
-          <Sort sortKey={'TITLE'} onSort={onSort} activeSortKey={sortKey} isSortReverse={isSortReverse}>Title</Sort>
-        </span>
-        <span style={{width: '20%'}}>
-          <Sort sortKey={'AUTHOR'} onSort={onSort} activeSortKey={sortKey} isSortReverse={isSortReverse}>Author</Sort>
-        </span>
-        <span style={{width: '10%'}}>
-          <Sort sortKey={'COMMENTS'} onSort={onSort} activeSortKey={sortKey} isSortReverse={isSortReverse}>Comments</Sort>
-        </span>
-        <span style={{width: '10%'}}>
-          <Sort sortKey={'POINTS'} onSort={onSort} activeSortKey={sortKey} isSortReverse={isSortReverse}>Points</Sort>
-        </span>
-        <span style={{width: '20%'}}>Buttons</span>
-      </div>
-      {reverseSortedList.map(item =>
-        <div key={item.objectID} className={classNames("table-row", item.title ? '' : "table-row-comment")}>
-        <span style={{width: '40%'}}>
-          <a href={item.url}>{
-            item.title ?
-              item.title :
-              item.comment_text.slice(0, 100) + '...'
-          }</a>
-        </span>
-          <span style={{width: '20%'}}>
-          {item.author}
-        </span>
-          <span style={{width: '10%'}}>
-          {item.num_comments}
-        </span>
-          <span style={{width: '10%'}}>
-          {item.points}
-        </span>
-          <span style={{width: '10%'}}>
-          <Button
-            onClick={() => window.open(`https://news.ycombinator.com/item?id=${item.objectID}`, '_blank')}
-          >
-            Comments
-          </Button>
-        </span>
-          <span style={{width: '10%'}}>
-          <Button
-            onClick={() => onDismiss(item.objectID)}
-            className="button-inline"
-          >
-            Dismiss
-          </Button>
-        </span>
-        </div>
-      )}
-    </div>
-  );
-};
-
-Table.propTypes = {
-  list: PropTypes.arrayOf(
-    PropTypes.shape({
-      objectID: PropTypes.string.isRequired,
-      author: PropTypes.string,
-      url: PropTypes.string,
-      num_comments: PropTypes.number,
-      points: PropTypes.number,
-    })
-  ).isRequired,
-  onDismiss: PropTypes.func.isRequired,
-};
 
 const Sort = ({
   sortKey,
@@ -366,4 +269,5 @@ export {
   Button,
   Search,
   Table,
+  Sort,
 };
