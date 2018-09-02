@@ -2,6 +2,11 @@ import React, { Component } from 'react';
 import axios from 'axios';
 import PropTypes from 'prop-types';
 import './App.css';
+import { library } from '@fortawesome/fontawesome-svg-core'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faSpinner } from '@fortawesome/free-solid-svg-icons'
+
+library.add(faSpinner);
 
 const DEFAULT_QUERY = 'redux';
 const DEFAULT_HPP = '100';
@@ -24,6 +29,7 @@ class App extends Component {
       searchKey: '',
       searchTerm: DEFAULT_QUERY,
       error: null,
+      isLoading: false,
     };
 
     this.needsToSearchTopStories = this.needsToSearchTopStories.bind(this);
@@ -55,11 +61,13 @@ class App extends Component {
       results: {
         ...results,
         [searchKey]: { hits: updatedHits, page }
-      }
+      },
+      isLoading: false,
     });
   }
 
   fetchSearchTopStories(searchTerm, page = 0) {
+    this.setState({ isLoading: true });
     axios(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${searchTerm}&${PARAM_PAGE}${page}&${PARAM_HPP}${DEFAULT_HPP}`)
       .then(result => this._isMounted && this.setSearchTopStories(result.data))
       .catch(error => this._isMounted && this.setState({ error }));
@@ -111,7 +119,8 @@ class App extends Component {
       searchTerm,
       results,
       searchKey,
-      error
+      error,
+      isLoading,
     } = this.state;
 
     const page = (
@@ -147,26 +156,52 @@ class App extends Component {
           />
         }
         <div className="interactions">
-          <Button onClick={() => this.fetchSearchTopStories(searchKey, page + 1)}>
+            <ButtonWithLoading
+              isLoading={isLoading}
+              onClick={() => this.fetchSearchTopStories(searchKey, page + 1)}
+            >
               More
-          </Button>
+            </ButtonWithLoading>
         </div>
       </div>
     );
   }
 }
 
-const Search = ({ value, onChange, onSubmit, children }) =>
-  <form onSubmit={onSubmit}>
-    <input
-      type="text"
-      value={value}
-      onChange={onChange}
-    />
-    <button type="submit">
-      {children}
-    </button>
-  </form>;
+const Loading = () =>
+  <div>Loading... <FontAwesomeIcon icon="spinner"/></div>;
+
+class Search extends Component {
+
+  componentDidMount() {
+    if (this.input) {
+      this.input.focus();
+    }
+  }
+
+  render() {
+    const {
+      value,
+      onChange,
+      onSubmit,
+      children
+    } = this.props;
+
+    return (
+      <form onSubmit={onSubmit}>
+        <input
+          type="text"
+          value={value}
+          onChange={onChange}
+          ref={(node) => { this.input = node;}}
+        />
+        <button type="submit">
+          {children}
+        </button>
+      </form>
+    );
+  }
+}
 
 const classNames = (...args) => args.reduce((acc, value) => acc + ' ' + value, '');
 
@@ -174,37 +209,37 @@ const Table = ({ list, onDismiss }) =>
   <div className="table">
     {list.map(item =>
       <div key={item.objectID} className={classNames("table-row", item.title ? '' : "table-row-comment")}>
-        <span style={{ width: '40%' }}>
-          <a href={item.url}>{
-            item.title ?
-              item.title :
-              item.comment_text.slice(0, 100) + '...'
-          }</a>
-        </span>
-        <span style={{ width: '20%' }}>
-          {item.author}
-        </span>
-        <span style={{ width: '10%' }}>
-          {item.num_comments}
-        </span>
-        <span style={{ width: '10%' }}>
-          {item.points}
-        </span>
-        <span style={{ width: '10%' }}>
-          <Button
-            onClick={() => window.open(`https://news.ycombinator.com/item?id=${item.objectID}`, '_blank')}
-            >
-            Comments
-          </Button>
-        </span>
-        <span style={{ width: '10%' }}>
-          <Button
-              onClick={() => onDismiss(item.objectID)}
-              className="button-inline"
-          >
-            Dismiss
-          </Button>
-        </span>
+      <span style={{width: '40%'}}>
+        <a href={item.url}>{
+          item.title ?
+            item.title :
+            item.comment_text.slice(0, 100) + '...'
+        }</a>
+      </span>
+        <span style={{width: '20%'}}>
+        {item.author}
+      </span>
+        <span style={{width: '10%'}}>
+        {item.num_comments}
+      </span>
+        <span style={{width: '10%'}}>
+        {item.points}
+      </span>
+        <span style={{width: '10%'}}>
+        <Button
+          onClick={() => window.open(`https://news.ycombinator.com/item?id=${item.objectID}`, '_blank')}
+        >
+          Comments
+        </Button>
+      </span>
+        <span style={{width: '10%'}}>
+        <Button
+          onClick={() => onDismiss(item.objectID)}
+          className="button-inline"
+        >
+          Dismiss
+        </Button>
+      </span>
       </div>
     )}
   </div>;
@@ -236,6 +271,15 @@ Button.propTypes = {
   className: PropTypes.string,
   children: PropTypes.node.isRequired,
 };
+
+
+const withLoading = (Component) => ({isLoading, ...rest}) =>
+  isLoading
+    ? <Loading />
+    : <Component {...rest}/>;
+
+const ButtonWithLoading = withLoading(Button);
+
 
 export default App;
 
