@@ -46,13 +46,13 @@ describe('Button', () => {
 
   it('renderes without crashing', () => {
     const div = document.createElement('dev');
-    ReactDOM.render(<Button>Click me!</Button>, div);
+    ReactDOM.render(<Button onClick={() => true}>Click me!</Button>, div);
     ReactDOM.unmountComponentAtNode(div);
   });
 
   test('create snapshot', () => {
     const component = renderer.create(
-      <Button>Click me!</Button>
+      <Button onClick={() => true}>Click me!</Button>
     );
     const tree = component.toJSON();
     expect(tree).toMatchSnapshot();
@@ -68,6 +68,9 @@ describe('Table', () => {
       { title: '2', author: '2', num_comments: 20, points: 1, objectID: 'z'},
       { comment_text: 'text', author: '111', num_comments: 1, points: 100, objectID: 'a'},
     ],
+    sortKey: 'TITLE',
+    isSortReverse: false,
+    onDismiss: () => true,
   };
 
   it('renderes without crashing', () => {
